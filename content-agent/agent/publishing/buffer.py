@@ -39,11 +39,13 @@ class BufferPublisher(Publisher):
             "shorten": "false",
             # sin "now" ni "scheduled_at": queda en la cola para aprobar manualmente
         }
-        media_url = piece.asset.video_url or piece.asset.image_url
+        first = piece.idea.frame("first")
+        thumb = first.approved_image.url if (first and first.approved_image) else None
+        media_url = piece.asset.video_url or thumb
         if media_url:
             data["media[link]"] = media_url
-            if piece.asset.image_url:
-                data["media[thumbnail]"] = piece.asset.image_url
+            if thumb:
+                data["media[thumbnail]"] = thumb
 
         resp = requests.post(
             f"{API_BASE}/updates/create.json",

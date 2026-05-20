@@ -21,6 +21,7 @@ from typing import Any, Optional
 import requests
 
 from ..config import Settings
+from ..models import GeneratedImage
 
 log = logging.getLogger("agent.generation")
 
@@ -118,7 +119,10 @@ class HiggsfieldClient:
         return dest
 
     # -- API de alto nivel -----------------------------------------------------
-    def generate_image(self, prompt: str, dest: Path, aspect_ratio: str = "9:16") -> tuple[str, Path]:
+    def generate_image(
+        self, prompt: str, dest: Path, variant: int = 0, aspect_ratio: str = "9:16"
+    ) -> GeneratedImage:
+        """Genera UNA imagen (nano banana pro) y la descarga a `dest`."""
         payload = {
             "model": self.s.higgsfield_image_model,
             "prompt": prompt,
@@ -131,25 +135,49 @@ class HiggsfieldClient:
         if not url:
             raise HiggsfieldError(f"Sin URL de imagen en: {data}")
         path = self._download(url, dest)
-        return url, path
+        return GeneratedImage(variant=variant, url=url, path=str(path))
+
+    def generate_image_variants(
+        self, prompt: str, dest_template: Path, count: int, aspect_ratio: str = "9:16"
+    ) -> list[GeneratedImage]:
+        """Genera `count` variantes del mismo prompt para que el humano elija.
+
+        `dest_template` se usa con sufijo _vN (ej. frame_first.png -> frame_first_v0.png).
+        """
+        out: list[GeneratedImage] = []
+        for i in range(count):
+            dest = dest_template.with_name(f"{dest_template.stem}_v{i}{dest_template.suffix}")
+            out.append(self.generate_image(prompt, dest, variant=i, aspect_ratio=aspect_ratio))
+        return out
 
     def generate_video(
         self,
         prompt: str,
-        image_url: Optional[str],
         dest: Path,
+        first_frame_url: Optional[str] = None,
+        last_frame_url: Optional[str] = None,
         aspect_ratio: str = "9:16",
         duration: int = 10,
     ) -> tuple[str, Path]:
+        """Genera el video (seedance 2.0).
+
+        Acepta frame inicial, final o ambos (interpolacion). Los nombres de
+        campo exactos para el frame final pueden variar segun el modelo; se
+        envian las variantes mas comunes para maxima compatibilidad.
+        """
+        if not (first_frame_url or last_frame_url):
+            raise HiggsfieldError("Se requiere al menos un frame (inicial o final)")
         payload: dict[str, Any] = {
             "model": self.s.higgsfield_video_model,
             "prompt": prompt,
             "aspect_ratio": aspect_ratio,
             "duration": duration,
         }
-        if image_url:
-            # image-to-video: la imagen de nano banana es el primer frame
-            payload["image_url"] = image_url
+        if first_frame_url:
+            payload["image_url"] = first_frame_url        # primer frame
+        if last_frame_url:
+            payload["end_image_url"] = last_frame_url     # ultimo frame
+            payload["last_frame_url"] = last_frame_url    # alias defensivo
         submit = self._submit("v1/video/generations", payload)
         data = self._poll(self._status_url(submit), timeout_s=900)
         url = self._extract_media_url(data)

@@ -11,7 +11,7 @@ import logging
 import re
 
 from ..config import Settings
-from ..models import ContentIdea, TrendItem
+from ..models import ContentIdea, StoryboardFrame, TrendItem
 
 log = logging.getLogger("agent.ideation")
 
@@ -58,8 +58,14 @@ def _user_prompt(trends: list[TrendItem], n: int, hashtags_base: list[str]) -> s
 {trends_block}
 
 Elegi los {n} temas con mayor potencial para nuestra audiencia y crea {n} \
-ideas de contenido para short-form vertical. Cada idea debe poder grabarse \
-como un solo plano/animacion de ~10 segundos.
+ideas de contenido para short-form vertical (~10 segundos).
+
+Para cada idea pensa un STORYBOARD de frames clave que se generaran con un \
+modelo de imagen (nano banana pro) y luego se animaran con un modelo de video \
+(seedance). Decidi el `frame_mode`:
+- "first": el video arranca desde una imagen (definis solo el primer frame).
+- "last": el video termina en una imagen (definis solo el ultimo frame).
+- "both": definis primer Y ultimo frame, el video interpola entre ambos (mejor control).
 
 Devolve EXCLUSIVAMENTE un JSON valido con esta forma (sin texto extra, sin markdown):
 
@@ -69,16 +75,20 @@ Devolve EXCLUSIVAMENTE un JSON valido con esta forma (sin texto extra, sin markd
       "title": "titulo interno corto",
       "hook": "primera frase que corta el scroll (max 12 palabras)",
       "script": "guion completo de voz en off siguiendo la estructura, ~25-40 palabras",
-      "image_prompt": "prompt en INGLES, detallado, para generar la imagen base vertical 9:16 (nano banana pro)",
-      "video_prompt": "prompt en INGLES describiendo el movimiento/animacion de 10s a partir de la imagen (seedance)",
       "caption": "caption en espanol para el post, 1-3 frases con gancho",
       "hashtags": ["#tag1", "#tag2"],
-      "based_on": ["url de la/las fuentes usadas"]
+      "based_on": ["url de la/las fuentes usadas"],
+      "frame_mode": "first | last | both",
+      "video_prompt": "prompt en INGLES describiendo el movimiento/camara/animacion de 10s (seedance)",
+      "first_frame": {{"description": "que muestra esta escena (espanol)", "prompt": "prompt nano banana en INGLES, vertical 9:16, detallado"}},
+      "last_frame": {{"description": "que muestra esta escena (espanol)", "prompt": "prompt nano banana en INGLES, vertical 9:16, detallado"}}
     }}
   ]
 }}
 
-Incluye estos hashtags base ademas de los especificos: {', '.join(hashtags_base)}."""
+Reglas: incluI `first_frame` solo si frame_mode es "first" o "both"; incluI \
+`last_frame` solo si es "last" o "both". Incluye estos hashtags base ademas de \
+los especificos: {', '.join(hashtags_base)}."""
 
 
 def _extract_json(text: str) -> dict:
@@ -93,18 +103,46 @@ def _extract_json(text: str) -> dict:
     return json.loads(text[start : end + 1])
 
 
+def _build_storyboard(raw: dict) -> tuple[str, list[StoryboardFrame]]:
+    mode = (raw.get("frame_mode") or "first").strip().lower()
+    if mode not in {"first", "last", "both"}:
+        mode = "first"
+    frames: list[StoryboardFrame] = []
+    if mode in {"first", "both"} and raw.get("first_frame"):
+        ff = raw["first_frame"]
+        frames.append(
+            StoryboardFrame(
+                role="first",
+                description=ff.get("description", "").strip(),
+                prompt=ff.get("prompt", "").strip(),
+            )
+        )
+    if mode in {"last", "both"} and raw.get("last_frame"):
+        lf = raw["last_frame"]
+        frames.append(
+            StoryboardFrame(
+                role="last",
+                description=lf.get("description", "").strip(),
+                prompt=lf.get("prompt", "").strip(),
+            )
+        )
+    return mode, frames
+
+
 def _to_ideas(payload: dict, hashtags_base: list[str]) -> list[ContentIdea]:
     ideas = []
     for raw in payload.get("ideas", []):
         tags = list(dict.fromkeys(hashtags_base + raw.get("hashtags", [])))
+        mode, frames = _build_storyboard(raw)
         ideas.append(
             ContentIdea(
                 title=raw.get("title", "").strip(),
                 hook=raw.get("hook", "").strip(),
                 script=raw.get("script", "").strip(),
-                image_prompt=raw.get("image_prompt", "").strip(),
-                video_prompt=raw.get("video_prompt", "").strip(),
                 caption=raw.get("caption", "").strip(),
+                video_prompt=raw.get("video_prompt", "").strip(),
+                frame_mode=mode,
+                storyboard=frames,
                 hashtags=tags,
                 based_on=raw.get("based_on", []),
             )
@@ -123,15 +161,30 @@ def _mock_ideas(trends: list[TrendItem], n: int, hashtags_base: list[str]) -> li
                     f"{t.title}. Te explico en 10 segundos que significa para tu "
                     "negocio y como aplicarlo hoy mismo. Segui a Okeybot."
                 ),
-                image_prompt=(
-                    "Vertical 9:16, modern clean tech aesthetic, vibrant accent colors, "
-                    "high contrast, abstract AI neural visualization, mobile-first composition"
-                ),
-                video_prompt=(
-                    "Slow cinematic zoom with subtle particle motion over the AI visualization, "
-                    "smooth camera push-in, 10 seconds, vertical"
-                ),
                 caption=f"{t.title} — que significa para tu negocio. ",
+                video_prompt=(
+                    "Smooth cinematic push-in from the opening frame, subtle particle "
+                    "motion, soft light shift, resolving into the closing frame, 10s, vertical"
+                ),
+                frame_mode="both",
+                storyboard=[
+                    StoryboardFrame(
+                        role="first",
+                        description="Apertura: gancho visual del tema",
+                        prompt=(
+                            "Vertical 9:16, modern clean tech aesthetic, vibrant accent "
+                            "colors, high contrast, abstract AI concept, mobile-first composition"
+                        ),
+                    ),
+                    StoryboardFrame(
+                        role="last",
+                        description="Cierre: la idea aplicada al negocio + marca",
+                        prompt=(
+                            "Vertical 9:16, same style, confident closing shot with subtle "
+                            "Okeybot brand accent, clean negative space for caption"
+                        ),
+                    ),
+                ],
                 hashtags=hashtags_base,
                 based_on=[t.url],
             )

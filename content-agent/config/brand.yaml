@@ -28,6 +28,8 @@ content:
   aspect_ratio: "9:16"
   video_duration_seconds: 10
   image_resolution: "1080p"
+  # Cuantas variantes de cada frame del storyboard generar para que elijas
+  storyboard_variants: 3
   # Estructura de guion que pedimos al ideador
   script_structure:
     - "Hook (1-2s): frase que frena el scroll"

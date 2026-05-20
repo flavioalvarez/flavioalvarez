@@ -4,14 +4,23 @@ Agente que genera **2 piezas de contenido por día** (Instagram Reels, TikTok y
 YouTube Shorts, formato vertical 9:16) para la firma de consultoría de IA
 [okeybot.com](https://okeybot.com).
 
-El flujo es:
+El flujo es por **etapas con aprobación humana**:
 
 ```
-investigar tendencias  →  idear contenido  →  generar imagen + video  →  borrador con aprobación
-   (Reddit, YouTube,        (Claude, en           (Higgsfield:                (Buffer / Ayrshare /
-    Twitter/X, RSS/HN)        español)             nano banana pro             cola local)
-                                                   + seedance 2.0)
+1. investigar      2. idear            3. storyboard        4. video           5. borrador
+   tendencias    →    + prompts      →    (nano banana,   →   (seedance 2.0  →   con aprobación
+   (Reddit,           (Claude, ES;        2-3 variantes       desde el/los       final
+    YouTube,          aprobás el          por frame,          frame/s
+    Twitter/X,        prompt de           elegís cuál)        aprobados)
+    RSS/HN)           video)
 ```
+
+- **Frames flexibles:** cada idea define un `frame_mode` — `first` (primer
+  frame), `last` (último frame) o `both` (ambos; el video interpola entre las
+  dos imágenes para mayor control).
+- **Storyboard con variantes:** por cada frame se generan 2-3 imágenes con nano
+  banana pro para que elijas la mejor antes de gastar crédito en el video.
+- **Aprobás el prompt del video** antes de renderizar.
 
 > **Regla de oro:** el agente **nunca publica solo**. Siempre deja un *borrador
 > pendiente de aprobación*. Vos revisás y aprobás antes de que salga.
@@ -23,10 +32,11 @@ investigar tendencias  →  idear contenido  →  generar imagen + video  →  b
 | Módulo | Qué hace |
 |---|---|
 | `agent/research/` | Agente investigador. Un colector por fuente (Reddit, YouTube, Twitter/X, RSS/Hacker News). Agrega, deduplica, filtra por frescura y rankea. |
-| `agent/ideation/` | Convierte las tendencias en ideas de contenido con guion, prompts de imagen/video, caption y hashtags. Usa Claude (con *prompt caching* sobre el contexto de marca). |
-| `agent/generation/` | Cliente de Higgsfield. Genera la imagen con **nano banana pro** y el video con **seedance 2.0** (image-to-video, la imagen es el primer frame). |
+| `agent/ideation/` | Convierte las tendencias en ideas con guion, `frame_mode`, prompt de video y prompts de cada frame del storyboard, caption y hashtags. Usa Claude (con *prompt caching* sobre el contexto de marca). |
+| `agent/generation/` | Cliente de Higgsfield. Genera variantes de imagen con **nano banana pro** y el video con **seedance 2.0** (acepta frame inicial, final o ambos). |
+| `agent/studio.py` | Las etapas sueltas para aprobación paso a paso: `research_and_ideate` → `generate_storyboard` → `approve_frame` → `render_video` → `publish_draft`. |
 | `agent/publishing/` | Crea el borrador con aprobación obligatoria. Adaptadores: `local` (default), `buffer`, `ayrshare`. |
-| `agent/pipeline.py` | Orquesta todo el flujo. |
+| `agent/pipeline.py` | Encadena las etapas de `studio` de corrido (modo automático / dry-run, auto-aprueba la 1ra variante). |
 | `agent/run.py` | CLI. |
 | `config/brand.yaml` | Voz de marca, formato, fuentes a monitorear. **Editá esto para ajustar el contenido.** |
 

@@ -32,35 +32,81 @@ class TrendItem:
 
 
 @dataclass
+class GeneratedImage:
+    """Una variante de imagen generada con nano banana pro."""
+
+    variant: int
+    url: Optional[str] = None
+    path: Optional[str] = None
+
+
+@dataclass
+class StoryboardFrame:
+    """Un frame clave del storyboard (primero o ultimo de la escena).
+
+    Se generan varias `variants` con nano banana para que el humano elija.
+    `approved_variant` queda en None hasta que se aprueba una.
+    """
+
+    role: str                        # "first" | "last"
+    description: str                 # que muestra (en espanol, para entender)
+    prompt: str                      # prompt nano banana (ingles)
+    variants: list[GeneratedImage] = field(default_factory=list)
+    approved_variant: Optional[int] = None
+
+    @property
+    def approved_image(self) -> Optional[GeneratedImage]:
+        if self.approved_variant is None:
+            return None
+        for img in self.variants:
+            if img.variant == self.approved_variant:
+                return img
+        return None
+
+
+@dataclass
 class ContentIdea:
     """Idea de contenido lista para producir."""
 
     title: str                       # titulo interno de la pieza
     hook: str                         # frase de apertura (corta el scroll)
     script: str                       # guion completo (voz en off)
-    image_prompt: str                 # prompt para nano banana pro
-    video_prompt: str                 # prompt para seedance 2.0
     caption: str                      # texto del post
+    video_prompt: str = ""            # prompt para seedance (REQUIERE aprobacion)
+    frame_mode: str = "first"         # "first" | "last" | "both"
+    storyboard: list[StoryboardFrame] = field(default_factory=list)
     hashtags: list[str] = field(default_factory=list)
     based_on: list[str] = field(default_factory=list)  # urls de las fuentes
+
+    def frame(self, role: str) -> Optional[StoryboardFrame]:
+        for fr in self.storyboard:
+            if fr.role == role:
+                return fr
+        return None
 
 
 @dataclass
 class GeneratedAsset:
-    image_url: Optional[str] = None
-    image_path: Optional[str] = None
     video_url: Optional[str] = None
     video_path: Optional[str] = None
 
 
 @dataclass
 class ContentPiece:
-    """Idea + activos generados + estado de publicacion."""
+    """Idea + activos generados + estado de publicacion.
+
+    Etapas del estado:
+      proposed        -> idea + prompts listos, falta aprobar el prompt de video
+      storyboard_ready-> variantes de frames generadas, falta elegir variante
+      rendered        -> video generado a partir de los frames aprobados
+      needs_approval  -> borrador encolado, falta aprobacion final para publicar
+      scheduled / failed
+    """
 
     idea: ContentIdea
     asset: GeneratedAsset = field(default_factory=GeneratedAsset)
-    status: str = "draft"            # draft | needs_approval | scheduled | failed
-    publish_ref: Optional[str] = None  # id del borrador en la plataforma
+    status: str = "proposed"
+    publish_ref: Optional[str] = None
     created_at: datetime = field(default_factory=_now)
     notes: list[str] = field(default_factory=list)
 
