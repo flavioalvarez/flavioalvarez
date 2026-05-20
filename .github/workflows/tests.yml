@@ -1,0 +1,28 @@
+name: Tests
+
+on:
+  push:
+    paths:
+      - "content-agent/**"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    paths:
+      - "content-agent/**"
+
+defaults:
+  run:
+    working-directory: content-agent
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt pytest
+      - run: pytest -q
+      - name: Smoke test (dry-run del pipeline completo)
+        run: python -m agent.run --dry-run --pieces 2

@@ -1,0 +1,74 @@
+# Perfil de marca para el agente de contenido de okeybot.com
+# Editá este archivo para ajustar el tono, el formato y las fuentes de investigacion.
+
+brand:
+  name: "Okeybot"
+  website: "https://okeybot.com"
+  tagline: "Consultoria de inteligencia artificial"
+  # Como se describe la firma (se inyecta en el prompt de ideacion).
+  description: >
+    Okeybot es una firma de consultoria que ayuda a empresas a adoptar
+    inteligencia artificial de forma practica: automatizacion, agentes,
+    integraciones y estrategia de IA. Hablamos claro, sin humo, con foco
+    en resultados de negocio.
+  audience: >
+    Founders, ejecutivos y equipos de PyMEs y empresas medianas en LATAM y
+    Espana que quieren entender y aplicar IA sin ser tecnicos.
+  language: "es"          # idioma de los guiones y captions
+  tone:
+    - "cercano y directo"
+    - "experto pero sin jerga innecesaria"
+    - "accionable: siempre un 'que podes hacer con esto'"
+    - "sin clickbait vacio; gancho honesto"
+  cta: "Seguinos para mas IA aplicada al negocio. Consultas: okeybot.com"
+
+content:
+  # Formato de las piezas
+  platforms: ["instagram_reels", "tiktok", "youtube_shorts"]
+  aspect_ratio: "9:16"
+  video_duration_seconds: 10
+  image_resolution: "1080p"
+  # Estructura de guion que pedimos al ideador
+  script_structure:
+    - "Hook (1-2s): frase que frena el scroll"
+    - "Contexto (2-3s): que paso / por que importa"
+    - "Insight (3-4s): la idea aplicada al negocio"
+    - "CTA (1-2s): cierre + invitacion"
+  hashtags_base:
+    - "#inteligenciaartificial"
+    - "#IA"
+    - "#okeybot"
+    - "#automatizacion"
+    - "#tecnologia"
+  # Estilo visual para los prompts de imagen/video
+  visual_style: >
+    Estetica moderna, limpia y tecnologica. Colores de marca con acentos
+    vibrantes, alto contraste, composicion vertical centrada para mobile.
+    Evitar texto incrustado salvo que se pida explicitamente.
+
+research:
+  # Subreddits a monitorear (sin el prefijo r/)
+  subreddits:
+    - "artificial"
+    - "MachineLearning"
+    - "OpenAI"
+    - "LocalLLaMA"
+    - "singularity"
+    - "ArtificialInteligence"
+  # Consultas/temas para YouTube y Twitter
+  youtube_queries:
+    - "inteligencia artificial"
+    - "AI news"
+    - "nuevos modelos de IA"
+  twitter_queries:
+    - "inteligencia artificial"
+    - "AI agents"
+  # RSS / fuentes sin API key
+  rss_feeds:
+    - "https://hnrss.org/newest?q=AI+OR+LLM+OR+%22artificial+intelligence%22"
+    - "https://www.technologyreview.com/feed/"
+    - "https://venturebeat.com/category/ai/feed/"
+  # Cuantos items pedir por fuente
+  per_source_limit: 15
+  # Ventana de frescura en horas (descarta lo mas viejo)
+  freshness_hours: 48

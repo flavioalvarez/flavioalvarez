@@ -1,0 +1,65 @@
+name: Contenido diario Okeybot
+
+on:
+  schedule:
+    # 2 corridas por dia (UTC). 12:00 UTC ~ 09:00 ART, 21:00 UTC ~ 18:00 ART.
+    - cron: "0 12 * * *"
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Correr en modo simulado (sin gastar credito)"
+        type: boolean
+        default: false
+      pieces:
+        description: "Cantidad de piezas a generar"
+        default: "1"
+
+defaults:
+  run:
+    working-directory: content-agent
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Generar contenido (borradores con aprobacion)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          IDEATION_MODEL: ${{ vars.IDEATION_MODEL }}
+          HIGGSFIELD_API_KEY: ${{ secrets.HIGGSFIELD_API_KEY }}
+          HIGGSFIELD_SECRET: ${{ secrets.HIGGSFIELD_SECRET }}
+          HIGGSFIELD_BASE_URL: ${{ vars.HIGGSFIELD_BASE_URL }}
+          HIGGSFIELD_IMAGE_MODEL: ${{ vars.HIGGSFIELD_IMAGE_MODEL }}
+          HIGGSFIELD_VIDEO_MODEL: ${{ vars.HIGGSFIELD_VIDEO_MODEL }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+          PUBLISHER: ${{ vars.PUBLISHER }}
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_PROFILE_IDS: ${{ vars.BUFFER_PROFILE_IDS }}
+          AYRSHARE_API_KEY: ${{ secrets.AYRSHARE_API_KEY }}
+          PIECES_PER_RUN: ${{ github.event.inputs.pieces || '2' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: python -m agent.run --verbose
+
+      - name: Subir activos generados como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contenido-${{ github.run_id }}
+          path: content-agent/output/
+          if-no-files-found: ignore
+          retention-days: 14
